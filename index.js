@@ -26,11 +26,70 @@ app.get('/', (req, res) => {
 
 async function run() {
     try {
-        // await client.connect();
+        await client.connect();
 
         const db = client.db("travelEase_db");
         const vehiclesCollection = db.collection('vehicles');
         const bookingsCollection = db.collection('bookings');
+        const usersCollection = db.collection("users");
+        const reviewsCollection = db.collection("reviews");
+
+        app.post("/reviews", async (req, res) => {
+            try {
+                const review = req.body;
+
+                if (!review.vehicleId || !review.userEmail) {
+                    return res.status(400).send({ message: "Missing fields" });
+                }
+
+                review.createdAt = new Date();
+
+                const result = await reviewsCollection.insertOne(review);
+                res.send(result);
+
+            } catch (error) {
+                res.status(500).send({ message: "Failed to add review" });
+            }
+        });
+
+        app.get("/reviews/:vehicleId", async (req, res) => {
+            const vehicleId = req.params.vehicleId;
+
+            const result = await reviewsCollection
+                .find({ vehicleId })
+                .sort({ createdAt: -1 })
+                .toArray();
+
+            res.send(result);
+        });
+
+        app.post("/users", async (req, res) => {
+            const user = req.body;
+
+            // default role = user
+            user.role = "user";
+
+            const existing = await usersCollection.findOne({ email: user.email });
+
+            if (existing) {
+                return res.send(existing);
+            }
+
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        app.get("/users", async (req, res) => {
+            const result = await usersCollection.find().toArray();
+            res.send(result);
+        });
+        app.get("/users/admin/:email", async (req, res) => {
+            const email = req.params.email;
+
+            const user = await usersCollection.findOne({ email });
+
+            res.send({ admin: user?.role === "admin" });
+        });
 
         app.get('/vehicles', async (req, res) => {
             const { userEmail } = req.query;
@@ -105,6 +164,7 @@ async function run() {
             }
         });
 
+
         app.get("/bookings", async (req, res) => {
             try {
                 const userEmail = req.query.email || req.query.userEmail;
@@ -117,9 +177,7 @@ async function run() {
             }
         });
 
-
-
-        // await client.db("admin").command({ ping: 1 });
+        await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
     }
