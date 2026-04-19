@@ -177,6 +177,23 @@ async function run() {
             }
         });
 
+        app.delete("/bookings/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                const query = { _id: new ObjectId(id) };
+                const result = await bookingsCollection.deleteOne(query);
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ message: "Booking not found" });
+                }
+
+                res.send({ message: "Booking cancelled successfully" });
+            } catch (error) {
+                res.status(500).send({ message: "Failed to cancel booking", error });
+            }
+        });
+
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
